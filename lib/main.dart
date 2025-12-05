@@ -5,8 +5,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_iot_esp32_ust/firebase_options.dart';
 import 'package:flutter_iot_esp32_ust/providers/sensor_provider.dart';
+import 'package:flutter_iot_esp32_ust/url.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 
 // Inisialisasi notifikasi
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -124,6 +126,31 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     // _initializeApp();
+    postData();
+  }
+
+  Future<void> postData() async {
+    try {
+      String? token = await FirebaseMessaging.instance.getToken();
+      String tokenFcm = "";
+
+      if (token != null) {
+        tokenFcm = token;
+        log('FCM Token: $token');
+
+        // 3. Kirim token ke server aplikasi Anda di sini
+        // await _sendTokenToServer(token);
+      }
+
+      var response = await http.post(
+        Uri.parse("$url/api/register"),
+        body: {'token': tokenFcm},
+      );
+      log('Response status: ${response.statusCode}');
+      log('Response body: ${response.body}');
+    } catch (e) {
+      log('Error saat POST data: $e');
+    }
   }
 
   // Future<void> _initializeApp() async {
@@ -373,14 +400,14 @@ class _MyHomePageState extends State<MyHomePage> {
               children: [
                 Row(
                   children: [
-                    // Container(
-                    //   padding: const EdgeInsets.all(12),
-                    //   decoration: BoxDecoration(
-                    //     color: color.withValues(),
-                    //     borderRadius: BorderRadius.circular(12),
-                    //   ),
-                    //   child: Icon(icon, color: color, size: 28),
-                    // ),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: color.withValues(),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: color, size: 28),
+                    ),
                     const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
