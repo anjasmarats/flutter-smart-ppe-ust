@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -17,7 +18,6 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 Future<void> _firebaseMessagingHandler(RemoteMessage message) async {
   log('Handling a background message data: ${message.data}');
-  final sensor = ApiService.setSensor(0, 0, 0, 0);
 
   // Pastikan payload notification tidak null sebelum menampilkan
   if (message.notification != null) {
@@ -74,7 +74,17 @@ Future<void> main() async {
 
   // Setup message handlers
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    log('Message received: ${message.notification?.title}');
+    log('Message received: ${message.notification?.body}');
+    final Map<String, dynamic> data = jsonDecode(
+      "${message.notification?.body}",
+    );
+    log("data = ${data["gas"]}");
+    ApiService.setSensor(
+      data["temperature"].toDouble(),
+      data["gas"].toDouble(),
+      data["otot_1"].toDouble(),
+      data["otot_2"].toDouble(),
+    );
     if (message.notification != null) {
       await showNotification(message.notification!);
     }
@@ -136,12 +146,13 @@ class _MyHomePageState extends State<MyHomePage> {
       String? token = await FirebaseMessaging.instance.getToken();
       String tokenFcm = "";
 
+      // void setSensor(double suhu, double gas, double otot_1, double otot_2) {
+      //   final api = ApiService.setSensor(suhu, gas, otot_1, otot_2);
+      // }
+
       if (token != null) {
         tokenFcm = token;
-        log('FCM Token: $token');
-
-        // 3. Kirim token ke server aplikasi Anda di sini
-        // await _sendTokenToServer(token);
+        // log('FCM Token: $token');
       }
 
       var response = await http.post(
@@ -268,10 +279,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   _buildSensorCard(
                     title: 'Gas',
                     value: sensorProvider.gas.toString(),
-                    unit: 'ppm',
+                    unit: '',
                     icon: Icons.cloud,
                     color: Colors.purple,
-                    description: 'Deteksi Gas Beracun',
+                    description: 'Kadar Gas',
                     maxValue: 100,
                     threshold: 30,
                     currentValue: sensorProvider.gas,
