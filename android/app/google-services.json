@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "276926171898",
+    "project_id": "flutter-iot-esp32",
+    "storage_bucket": "flutter-iot-esp32.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:276926171898:android:b2bb91f66e3711c8f79743",
+        "android_client_info": {
+          "package_name": "com.flutter.iot.esp32.ust"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBO_yqCnwbv6SBjWGxaJ-sDq9-myeiqsXg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
