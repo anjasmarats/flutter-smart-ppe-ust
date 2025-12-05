@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_iot_esp32_ust/firebase_options.dart';
 import 'package:flutter_iot_esp32_ust/providers/sensor_provider.dart';
+import 'package:flutter_iot_esp32_ust/services/api_service.dart';
 import 'package:flutter_iot_esp32_ust/url.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 Future<void> _firebaseMessagingHandler(RemoteMessage message) async {
   log('Handling a background message data: ${message.data}');
+  final sensor = ApiService.setSensor(0, 0, 0, 0);
 
   // Pastikan payload notification tidak null sebelum menampilkan
   if (message.notification != null) {
