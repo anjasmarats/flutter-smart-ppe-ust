@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_iot_esp32_ust/firebase_options.dart';
+import 'package:flutter_iot_esp32_ust/shared_preferences_monitor.dart';
 import 'package:flutter_iot_esp32_ust/url.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
@@ -103,6 +104,13 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  // Instance of our monitor
+  final SharedPreferencesMonitor _monitor = SharedPreferencesMonitor();
+  // Local state to hold the current preferences map
+  Map<String, dynamic> _currentPrefs = {};
+  // Controllers for the text fields
+  final TextEditingController _keyController = TextEditingController();
+  final TextEditingController _valueController = TextEditingController();
   // State untuk data sensor
   double suhu = 0.0;
   double gas = 0.0;
@@ -118,6 +126,13 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _initializeFirebaseMessaging();
     _postFCMToken();
+    _monitor.stream.listen((Map<String, dynamic> newPrefs) {
+      // Update the UI with the new preferences map
+      setState(() {
+        _currentPrefs = newPrefs;
+      });
+    });
+    log("currentPrefs = $_currentPrefs");
   }
 
   // Setup Firebase Messaging
@@ -131,6 +146,13 @@ class _MyHomePageState extends State<MyHomePage> {
         final Map<String, dynamic> data = jsonDecode(
           message.notification?.body ?? '{}',
         );
+        await _monitor.setDouble(
+          "suhu",
+          (data["temperature"] ?? 0.0).toDouble(),
+        );
+        await _monitor.setDouble("gas", (data["gas"] ?? 0.0).toDouble());
+        await _monitor.setDouble("otot_1", (data["otot_1"] ?? 0.0).toDouble());
+        await _monitor.setDouble("otot_2", (data["otot_2"] ?? 0.0).toDouble());
 
         // Update state dengan data baru
         setState(() {
@@ -356,7 +378,7 @@ class _MyHomePageState extends State<MyHomePage> {
             unit: '',
             icon: Icons.electrical_services,
             color: Colors.blue,
-            description: 'Deteksi Kelelahan Otot',
+            description: 'Deteksi Otot',
             maxValue: 100,
             threshold: 60,
             currentValue: otot1,
@@ -369,7 +391,7 @@ class _MyHomePageState extends State<MyHomePage> {
             unit: '',
             icon: Icons.electrical_services,
             color: Colors.blue,
-            description: 'Deteksi Kelelahan Otot',
+            description: 'Deteksi Otot',
             maxValue: 100,
             threshold: 60,
             currentValue: otot2,
