@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:developer';
+import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,13 +9,28 @@ import 'package:flutter_iot_esp32_ust/shared_preferences_monitor.dart';
 import 'package:flutter_iot_esp32_ust/url.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'dart:math';
+
+// Karakter yang tersedia: huruf besar, huruf kecil, dan angka
+const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
+Random _rnd = Random();
+
+String getRandomString(int length) => String.fromCharCodes(
+  Iterable.generate(
+    length,
+    (_) => _chars.codeUnitAt(_rnd.nextInt(_chars.length)),
+  ),
+);
+
+// Penggunaan:
+// String randomCode = getRandomString(10);
 
 // Inisialisasi notifikasi
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 Future<void> _firebaseMessagingHandler(RemoteMessage message) async {
-  log('Handling a background message data: ${message.data}');
+  dev.log('Handling a background message data: ${message.data}');
 
   // Pastikan payload notification tidak null sebelum menampilkan
   if (message.notification != null) {
@@ -123,21 +138,22 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _initializeFirebaseMessaging();
-    _postFCMToken();
     _monitor.stream.listen((Map<String, dynamic> newPrefs) {
       // Update the UI with the new preferences map
       setState(() {
         _currentPrefs = newPrefs;
       });
     });
-    log("currentPrefs = $_currentPrefs");
+    dev.log("currentPrefs = $_currentPrefs");
   }
 
   // Setup Firebase Messaging
-  void _initializeFirebaseMessaging() {
+  void _initializeFirebaseMessaging() async {
+    await _postFCMToken();
+
     // Listen untuk pesan yang diterima saat app berjalan di foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      log('Message received: ${message.notification?.body}');
+      dev.log('Message received: ${message.notification?.body}');
 
       try {
         // Parse data dari body notifikasi
@@ -171,12 +187,32 @@ class _MyHomePageState extends State<MyHomePage> {
           await showNotification(message.notification!);
         }
       } catch (e) {
-        log('Error parsing notification data: $e');
+        dev.log('Error parsing notification data: $e');
       }
     });
 
     // Setup background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingHandler);
+
+    // 2. Dengarkan event ketika token diperbarui (refresh)
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      dev.log("FCM Token Diperbarui: $newToken");
+
+      dev.log('FCM newToken: $newToken');
+
+      var response = await http.post(
+        Uri.parse("$url/api/register"),
+        body: {'username': '', 'token': newToken},
+      );
+
+      dev.log('Response status: ${response.statusCode}');
+      dev.log('Response body: ${response.body}');
+
+      // TODO: Perbarui token baru ini di server/backend Anda
+      // Jika Anda menggunakan Firestore, Anda bisa menggunakan FieldValue.arrayUnion
+      // untuk menyimpan semua token aktif per user.
+      // saveTokenToDatabase(newToken);
+    });
   }
 
   // Post FCM token ke server
@@ -185,18 +221,18 @@ class _MyHomePageState extends State<MyHomePage> {
       String? token = await FirebaseMessaging.instance.getToken();
 
       if (token != null) {
-        log('FCM Token: $token');
+        dev.log('FCM Token: $token');
 
         var response = await http.post(
           Uri.parse("$url/api/register"),
           body: {'token': token},
         );
 
-        log('Response status: ${response.statusCode}');
-        log('Response body: ${response.body}');
+        dev.log('Response status: ${response.statusCode}');
+        dev.log('Response body: ${response.body}');
       }
     } catch (e) {
-      log('Error saat POST data: $e');
+      dev.log('Error saat POST data: $e');
       setState(() {
         error = true;
       });
@@ -238,25 +274,28 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.deepPurpleAccent,
-        title: const Text(
-          'Smart PPE Monitoring',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.deepPurpleAccent,
+          title: const Text(
+            'Smart PPE Monitoring',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _refreshData,
-        child: loading
-            ? const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              )
-            : const Icon(Icons.refresh),
-        tooltip: 'Refresh Data',
+        body: SafeArea(child: _buildBody()),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _refreshData,
+          child: loading
+              ? const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                )
+              : const Icon(Icons.refresh),
+          tooltip: 'Refresh Data',
+        ),
       ),
     );
   }
@@ -340,20 +379,6 @@ class _MyHomePageState extends State<MyHomePage> {
           const SizedBox(height: 24),
 
           // Sensor Cards
-          // Gas Sensor Card
-          _buildSensorCard(
-            title: 'Gas',
-            value: gas.toStringAsFixed(1),
-            unit: '',
-            icon: Icons.cloud,
-            color: Colors.purple,
-            description: 'Kadar Gas',
-            maxValue: 100,
-            threshold: 30,
-            currentValue: gas,
-          ),
-          const SizedBox(height: 16),
-
           // Temperature Sensor Card
           _buildSensorCard(
             title: 'Suhu',
@@ -362,12 +387,26 @@ class _MyHomePageState extends State<MyHomePage> {
             icon: Icons.thermostat,
             color: Colors.orange,
             description: 'Temperature',
-            maxValue: 50,
+            maxValue: 100,
             threshold: 35,
             currentValue: suhu,
           ),
 
           const SizedBox(height: 24),
+
+          // Gas Sensor Card
+          _buildSensorCard(
+            title: 'Gas',
+            value: gas.toStringAsFixed(1),
+            unit: '',
+            icon: Icons.cloud,
+            color: Colors.purple,
+            description: 'Kadar Gas',
+            maxValue: 1000,
+            threshold: 30,
+            currentValue: gas,
+          ),
+          const SizedBox(height: 16),
 
           // EMG Sensor Cards
           _buildSensorCard(
@@ -377,7 +416,7 @@ class _MyHomePageState extends State<MyHomePage> {
             icon: Icons.electrical_services,
             color: Colors.blue,
             description: 'Deteksi Otot',
-            maxValue: 100,
+            maxValue: 5000,
             threshold: 60,
             currentValue: otot1,
           ),
@@ -390,7 +429,7 @@ class _MyHomePageState extends State<MyHomePage> {
             icon: Icons.electrical_services,
             color: Colors.blue,
             description: 'Deteksi Otot',
-            maxValue: 100,
+            maxValue: 5000,
             threshold: 60,
             currentValue: otot2,
           ),
