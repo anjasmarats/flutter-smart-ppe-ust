@@ -109,8 +109,6 @@ class _MyHomePageState extends State<MyHomePage> {
   // Local state to hold the current preferences map
   Map<String, dynamic> _currentPrefs = {};
   // Controllers for the text fields
-  final TextEditingController _keyController = TextEditingController();
-  final TextEditingController _valueController = TextEditingController();
   // State untuk data sensor
   double suhu = 0.0;
   double gas = 0.0;
